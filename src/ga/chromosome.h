@@ -7,6 +7,8 @@
 #include <utility>
 #include <vector>
 
+#include "ga/gene.h"
+
 namespace ga {
 
 template <typename T, std::size_t N>
@@ -23,19 +25,19 @@ struct Chromosome {
   Chromosome(Chromosome&& chromosome);
   ~Chromosome();
 
-  std::vector<T> params;
+  std::vector<Gene<T>> genes;
 };
 
 template <typename T, std::size_t N>
-Chromosome<T, N>::Chromosome() : params(N) {}
+Chromosome<T, N>::Chromosome() : genes(N) {}
 
 template <typename T, std::size_t N>
 Chromosome<T, N>::Chromosome(const Chromosome& chromosome)
-    : params(chromosome.params) {}
+    : genes(chromosome.genes) {}
 
 template <typename T, std::size_t N>
 Chromosome<T, N>::Chromosome(Chromosome&& chromosome)
-    : params(std::move(chromosome.params)) {}
+    : genes(std::move(chromosome.genes)) {}
 
 template <typename T, std::size_t N>
 Chromosome<T, N>::~Chromosome() {}
@@ -45,8 +47,8 @@ std::ostream& operator<<(std::ostream& os, const Chromosome<T, N>& chromosome) {
   std::string seperator = "";
   os << "<";
 
-  for (const auto& param : chromosome.params) {
-    std::cout << seperator << param;
+  for (const auto& gene : chromosome.genes) {
+    std::cout << seperator << gene;
     seperator = ", ";
   }
 

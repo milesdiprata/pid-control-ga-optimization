@@ -5,7 +5,6 @@
 #include <optional>
 #include <random>
 #include <type_traits>
-#include <utility>
 
 namespace ga {
 
@@ -46,7 +45,7 @@ class Gene {
   inline constexpr T& upper_bound() const { return bounds_.upper_bound; }
   inline T& upper_bound() { return bounds_.upper_bound; }
 
-  constexpr void Reset();
+  constexpr void Reset() { value_ = T(); }
   void Randomize();
 
   friend std::ostream& operator<<<>(std::ostream& os, const Gene& gene);
@@ -68,11 +67,6 @@ class Gene {
   T value_;
   std::optional<Bounds> bounds_;
 };
-
-template <typename T>
-inline constexpr void Gene<T>::Reset() {
-  value_ = T();
-}
 
 template <typename T>
 void Gene<T>::Randomize() {

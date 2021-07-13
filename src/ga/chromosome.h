@@ -25,26 +25,38 @@ class Chromosome {
   constexpr Chromosome(const Chromosome& chromosome)
       : genes_(chromosome.genes_) {}
 
-  constexpr ~Chromosome() = default;
+  virtual constexpr ~Chromosome() = default;
 
-  inline const Gene<T>& operator[](const std::size_t i) const {
-    return genes_[i];
-  }
+  constexpr Gene<T>& operator[](const std::size_t i) const { return genes_[i]; }
   inline Gene<T>& operator[](const std::size_t i) { return genes_[i]; }
 
-  inline constexpr Gene<T>& front() const { return genes_.front(); }
+  constexpr Gene<T>& front() const { return genes_.front(); }
   inline Gene<T>& front() { return genes_.front(); }
 
-  inline constexpr Gene<T>* begin() const { return &genes_.begin(); }
+  constexpr Gene<T>* begin() const { return &genes_.begin(); }
   inline Gene<T>* begin() { return &genes_.begin(); }
 
-  inline constexpr Gene<T>& back() const { return genes_.back(); }
+  constexpr Gene<T>& back() const { return genes_.back(); }
   inline Gene<T>& back() { return genes_.back(); }
 
-  inline constexpr Gene<T>* end() const { return &genes_.end(); }
+  constexpr Gene<T>* end() const { return &genes_.end(); }
   inline Gene<T>* end() { return &genes_.end(); }
 
-  constexpr void Reset();
+  constexpr double fitness() const { return fitness_; }
+  inline double& fitness() { return fitness_; }
+
+  constexpr double selection_pr() const { return selection_pr_; }
+  inline double& selection_pr() { return selection_pr_; }
+
+  constexpr void Reset() {
+    for (auto& gene : genes_) {
+      gene.Reset();
+    }
+
+    fitness_ = 0;
+    selection_pr_ = 0;
+  }
+
   void Randomize();
 
   friend std::ostream& operator<<<>(std::ostream& os,
@@ -52,20 +64,18 @@ class Chromosome {
 
  private:
   std::array<Gene<T>, N> genes_;
+  double fitness_;
+  double selection_pr_;
 };
-
-template <typename T, std::size_t N>
-inline constexpr void Chromosome<T, N>::Reset() {
-  for (auto& gene : genes_) {
-    gene.Reset();
-  }
-}
 
 template <typename T, std::size_t N>
 void Chromosome<T, N>::Randomize() {
   for (auto& gene : genes_) {
     gene.Randomize();
   }
+
+  fitness_ = 0;
+  selection_pr_ = 0;
 }
 
 template <typename T, std::size_t N>

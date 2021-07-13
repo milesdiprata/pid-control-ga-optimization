@@ -1,9 +1,13 @@
 #ifndef GA_PROCEDURE_H_
 #define GA_PROCEDURE_H_
 
+#include <algorithm>
 #include <cstddef>
 #include <memory>
+#include <random>
 #include <span>
+#include <unordered_map>
+#include <vector>
 
 #include "ga/chromosome.h"
 
@@ -52,45 +56,19 @@ class Procedure {
   void Start();
 
  private:
-  struct ChromosomePair {
-    static constexpr std::size_t kNumChromosomes = 2;
-
-    constexpr ChromosomePair(const Chromosome<T, N>& first,
-                             const Chromosome<T, N>& second)
-        : ChromosomePair({first, second}) {}
-
-    constexpr ~ChromosomePair() = default;
-
-    inline constexpr Chromosome<T, N>& first() const {
-      return chromosomes.front();
-    }
-    inline Chromosome<T, N>& first() { return chromosomes.front(); }
-
-    inline constexpr Chromosome<T, N>& second() const {
-      return chromosomes.back();
-    }
-    inline Chromosome<T, N>& second() { return chromosomes.back(); }
-
-    inline constexpr Chromosome<T, N>* begin() const {
-      return chromosomes.begin();
-    }
-    inline Chromosome<T, N>* begin() { return chromosomes.begin(); }
-
-    inline constexpr Chromosome<T, N>* end() const { return chromosomes.end(); }
-    inline Chromosome<T, N>* end() { return chromosomes.end(); }
-
-    std::array<Chromosome<T, N>, kNumChromosomes> chromosomes;
-  };
-
   void InitChromosomes(const Chromosome<T, N>& chromosome_template);
 
   const bool Terminate() const;
-  const ChromosomePair SelectParents() const;
-  const ChromosomePair Crossover(const ChromosomePair& parents) const;
+  const std::vector<Chromosome<T, N>*> SelectParents() const;
+  const std::vector<Chromosome<T, N>> Crossover(
+      const std::vector<Chromosome<T, N>*>& parents) const;
   void Mutate(Chromosome<T, N>& chromosome) const;
   void UpdatePopulation();
 
-  static const double Fitness(const Chromosome<T, N>& chromosome);
+  inline virtual const double Fitness(
+      const Chromosome<T, N>& chromosome) const {
+    return 1;
+  }
 
   Args args_;
   std::unique_ptr<Chromosome<T, N>[]> chromosomes_;
@@ -126,9 +104,8 @@ void Procedure<T, N>::Start() {
   auto chromosomes = std::span(chromosomes_.get(), args_.population_size);
   for (auto& chromosome : chromosomes) {
     chromosome.Randomize();
-    std::cout << chromosome << std::endl;
+    chromosome.fitness() = Fitness(chromosome);
   }
-  return;
 
   while (!Terminate()) {
     auto offspring = Crossover(SelectParents());
@@ -156,8 +133,61 @@ const bool Procedure<T, N>::Terminate() const {
   // * Minimum (solution) threshold reached
   // * No improvement in best individual for a specified number of generations
   // * Memory/time constraints
-  return false;
+
+  return num_generations_ > args_.num_generations;
 }
+
+template <typename T, std::size_t N>
+const std::vector<Chromosome<T, N>*> Procedure<T, N>::SelectParents() const {
+  auto chromosomes = std::span(chromosomes_.get(), args_.population_size);
+
+  double sum_of_fitness = 0;
+  for (const auto& chromosome : chromosomes) {
+    sum_of_fitness += chromosome.fitness();
+  }
+
+  double prev_selection_pr = 0;
+  for (auto& chromosome : chromosomes) {
+    chromosome.selection_pr() =
+        prev_selection_pr + (chromosome.fitness() / sum_of_fitness);
+  }
+
+  std::sort(
+      chromosomes.begin(), chromosomes.end(),
+      [](const Chromosome<T, N>& c1, const Chromosome<T, N>& c2) -> const bool {
+        return c1.fitness() < c2.fitness();
+      });
+
+  static auto mt = std::mt19937_64(std::random_device{}());
+  auto dis = std::uniform_real_distribution<>();
+  auto parents = std::vector<Chromosome<T, N>*>();
+
+  std::size_t num_chromosomes = chromosomes.size();
+  std::size_t num_spins = num_chromosomes - (num_chromosomes % 2);
+
+  for (std::size_t i = 0; i < num_spins; ++i) {
+    double rand = dis(mt);
+    for (auto& chromosome : chromosomes) {
+      if (rand < chromosome.selection_pr()) {
+        parents.push_back(&chromosome);
+      }
+    }
+  }
+
+  return parents;
+}
+
+template <typename T, std::size_t N>
+const std::vector<Chromosome<T, N>> Procedure<T, N>::Crossover(
+    const std::vector<Chromosome<T, N>*>& parents) const {
+  return {};
+}
+
+template <typename T, std::size_t N>
+void Procedure<T, N>::Mutate(Chromosome<T, N>& chromosome) const {}
+
+template <typename T, std::size_t N>
+void Procedure<T, N>::UpdatePopulation() {}
 
 }  // namespace ga
 

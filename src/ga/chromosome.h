@@ -3,51 +3,90 @@
 
 #include <cstddef>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "ga/gene.h"
 
 namespace ga {
 
 template <typename T, std::size_t N>
-struct Chromosome;
+class Chromosome;
 
 template <typename T, std::size_t N>
 std::ostream& operator<<(std::ostream& os, const Chromosome<T, N>& chromosome);
 
 template <typename T, std::size_t N>
-struct Chromosome {
+class Chromosome {
  public:
   Chromosome();
   Chromosome(const Chromosome& chromosome);
   Chromosome(Chromosome&& chromosome);
   ~Chromosome();
 
-  std::vector<Gene<T>> genes;
+  inline const Gene<T>& operator[](const std::size_t i) const {
+    return genes_[i];
+  }
+  inline Gene<T>& operator[](const std::size_t i) { return genes_[i]; }
+
+  inline const Gene<T>& front() const { return genes_[0](); }
+  inline Gene<T>& front() { return genes_[0]; }
+
+  inline const Gene<T>& back() const { return genes_[N - 1]; }
+  inline Gene<T>& back() { return genes_[N - 1]; }
+
+  inline const Gene<T>* begin() const { return &genes_[0]; }
+  inline Gene<T>* begin() { return &genes_[0]; }
+
+  inline const Gene<T>* end() const { return &genes_[N - 1]; }
+  inline Gene<T>* end() { return &genes_[N - 1]; }
+
+  void Reset();
+  void Randomize();
+
+  friend std::ostream& operator<<<>(std::ostream& os,
+                                    const Chromosome<T, N>& chromosome);
+
+ private:
+  std::unique_ptr<Gene<T>[]> genes_;
 };
 
 template <typename T, std::size_t N>
-Chromosome<T, N>::Chromosome() : genes(N) {}
+Chromosome<T, N>::Chromosome() : genes_(std::make_unique<Gene<T>[]>(N)) {}
 
 template <typename T, std::size_t N>
-Chromosome<T, N>::Chromosome(const Chromosome& chromosome)
-    : genes(chromosome.genes) {}
+Chromosome<T, N>::Chromosome(const Chromosome& chromosome) : Chromosome() {
+  std::copy(chromosome.genes_.get(), chromosome.genes_.get() + N, genes_.get());
+}
 
 template <typename T, std::size_t N>
 Chromosome<T, N>::Chromosome(Chromosome&& chromosome)
-    : genes(std::move(chromosome.genes)) {}
+    : genes_(std::move(chromosome.genes_)) {}
 
 template <typename T, std::size_t N>
 Chromosome<T, N>::~Chromosome() {}
+
+template <typename T, std::size_t N>
+void Chromosome<T, N>::Reset() {
+  for (auto& gene : genes_) {
+    gene.Reset();
+  }
+}
+
+template <typename T, std::size_t N>
+void Chromosome<T, N>::Randomize() {
+  for (auto& gene : genes_) {
+    gene.Randomize();
+  }
+}
 
 template <typename T, std::size_t N>
 std::ostream& operator<<(std::ostream& os, const Chromosome<T, N>& chromosome) {
   std::string seperator = "";
   os << "<";
 
-  for (const auto& gene : chromosome.genes) {
+  for (const auto& gene : chromosome.genes_) {
     std::cout << seperator << gene;
     seperator = ", ";
   }

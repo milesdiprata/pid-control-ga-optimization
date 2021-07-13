@@ -3,8 +3,7 @@
 
 #include <array>
 #include <cstddef>
-#include <random>
-#include <type_traits>
+#include <memory>
 
 #include "ga/chromosome.h"
 
@@ -13,12 +12,6 @@ namespace ga {
 template <typename T, std::size_t N>
 class Procedure {
  public:
-  using uniform_distribution = typename std::conditional<
-      std::is_floating_point<T>::value, std::uniform_real_distribution<T>,
-      typename std::conditional<std::is_integral<T>::value,
-                                std::uniform_int_distribution<T>,
-                                void>::type>::type;
-
   struct Args {
     static constexpr std::size_t kDefaultPopulationSize = 50;
     static constexpr std::size_t kDefaultNumGenerations = 150;
@@ -48,8 +41,8 @@ class Procedure {
     double mutation_pr;
   };
 
-  Procedure();
-  Procedure(const Args& args);
+  Procedure(const Args& args = Args(),
+            const Chromosome<T, N>& chromosome_template = Chromosome<T, N>());
   ~Procedure();
 
   inline constexpr Args& args() const { return args_; }
@@ -64,7 +57,6 @@ class Procedure {
     ChromosomePair(const Chromosome<T, N>& first,
                    const Chromosome<T, N>& second)
         : ChromosomePair({first, second}) {}
-
     ~ChromosomePair() = default;
 
     inline const Chromosome<T, N>& first() const { return chromosomes.front(); }
@@ -82,49 +74,50 @@ class Procedure {
     std::array<Chromosome<T, N>, kNumChromosomes> chromosomes;
   };
 
-  void Randomize();
   const bool Terminate() const;
   const ChromosomePair SelectParents() const;
-  const ChromosomePair Crossover(const ChromosomePair parents) const;
+  const ChromosomePair Crossover(const ChromosomePair& parents) const;
   void Mutate(Chromosome<T, N>& chromosome) const;
-  void Update();
+  void UpdatePopulation();
 
   static const double Fitness(const Chromosome<T, N>& chromosome);
 
   Args args_;
-  std::vector<Chromosome<T, N>> population_;
+  std::unique_ptr<Chromosome<T, N>[]> chromosomes_;
   std::size_t num_generations_;
 };
 
 template <typename T, std::size_t N>
-Procedure<T, N>::Procedure() {}
-
-template <typename T, std::size_t N>
-Procedure<T, N>::Procedure(const Args& args) : args_(args) {}
+Procedure<T, N>::Procedure(const Args& args,
+                           const Chromosome<T, N>& chromosome_template)
+    : args_(args),
+      chromosomes_(std::make_unique<Chromosome<T, N>[]>(args_.population_size)),
+      num_generations_(0) {
+  for (std::size_t i = 0; i < N; ++i) {
+    chromosomes_[i] = chromosome_template;
+  }
+}
 
 template <typename T, std::size_t N>
 Procedure<T, N>::~Procedure() {}
 
 template <typename T, std::size_t N>
 void Procedure<T, N>::Start() {
-  static auto mt = std::mt19937_64(std::random_device{}());
-  auto dist = uniform_distribution();
-  std::cout << dist(mt) << std::endl;
-  // Randomize();
-  // num_generations_ = 0;
+  num_generations_ = 0;
 
-  // while (!Terminate()) {
-  //   auto offspring = Crossover(SelectParents());
-  //   for (auto& chromosome : offspring) {
-  //     Mutate(chromosome);
-  //   }
+  for (std::size_t i = 0; i < N; ++i) {
+    chromosomes_[i].Randomize();
+  }
 
-  //   Update();
-  // }
+  while (!Terminate()) {
+    auto offspring = Crossover(SelectParents());
+    for (auto& chromosome : offspring) {
+      Mutate(chromosome);
+    }
+
+    Update();
+  }
 }
-
-template <typename T, std::size_t N>
-void Procedure<T, N>::Randomize() {}
 
 template <typename T, std::size_t N>
 const bool Procedure<T, N>::Terminate() const {
@@ -133,7 +126,7 @@ const bool Procedure<T, N>::Terminate() const {
   // * Minimum (solution) threshold reached
   // * No improvement in best individual for a specified number of generations
   // * Memory/time constraints
-  return false;
+  return true;
 }
 
 }  // namespace ga

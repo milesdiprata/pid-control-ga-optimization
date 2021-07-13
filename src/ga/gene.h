@@ -3,6 +3,8 @@
 
 #include <iostream>
 #include <optional>
+#include <random>
+#include <type_traits>
 #include <utility>
 
 namespace ga {
@@ -15,6 +17,12 @@ std::ostream& operator<<(std::ostream& os, const Gene<T>& gene);
 
 template <typename T>
 struct Gene {
+  using uniform_distribution = typename std::conditional<
+      std::is_floating_point<T>::value, std::uniform_real_distribution<T>,
+      typename std::conditional<std::is_integral<T>::value,
+                                std::uniform_int_distribution<T>,
+                                void>::type>::type;
+
   struct Bounds {
     Bounds(const T& lower, const T& upper) : lower(lower), upper(upper) {}
     Bounds(const Bounds& bounds) : lower(bounds.lower), upper(bounds.upper) {}
@@ -33,6 +41,9 @@ struct Gene {
   Gene(const Gene& gene);
   Gene(Gene&& gene);
   ~Gene();
+
+  void Reset();
+  void Randomize();
 
   T value;
   std::optional<Bounds> bounds;
@@ -61,6 +72,19 @@ Gene<T>::Gene(Gene&& gene)
 
 template <typename T>
 Gene<T>::~Gene() {}
+
+template <typename T>
+inline void Gene<T>::Reset() {
+  value = T();
+}
+
+template <typename T>
+void Gene<T>::Randomize() {
+  static auto mt = std::mt19937_64(std::random_device{}());
+  auto dis = bounds ? uniform_distribution(bounds.lower, bounds.higher)
+                    : uniform_distribution();
+  value = dis(gen);
+}
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const Gene<T>& gene) {

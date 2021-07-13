@@ -15,7 +15,7 @@ DEPEXT := d
 OBJEXT := o
 
 # Flags, libraries and includes
-CFLAGS := -Wall -Werror -std=c++17 -g
+CFLAGS := -Wall -Werror -std=c++20 -g
 LIB :=
 INC := -I$(SRCDIR) -I$(INCDIR) -I/usr/local/include
 INCDEP := -I$(SRCDIR) -I$(INCDIR)

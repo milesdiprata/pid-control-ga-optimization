@@ -1,9 +1,9 @@
 #ifndef GA_CHROMOSOME_H_
 #define GA_CHROMOSOME_H_
 
+#include <array>
 #include <cstddef>
 #include <iostream>
-#include <memory>
 #include <string>
 #include <utility>
 
@@ -20,55 +20,42 @@ std::ostream& operator<<(std::ostream& os, const Chromosome<T, N>& chromosome);
 template <typename T, std::size_t N>
 class Chromosome {
  public:
-  Chromosome();
-  Chromosome(const Chromosome& chromosome);
-  Chromosome(Chromosome&& chromosome);
-  ~Chromosome();
+  constexpr Chromosome() = default;
+
+  constexpr Chromosome(const Chromosome& chromosome)
+      : genes_(chromosome.genes_) {}
+
+  constexpr ~Chromosome() = default;
 
   inline const Gene<T>& operator[](const std::size_t i) const {
     return genes_[i];
   }
   inline Gene<T>& operator[](const std::size_t i) { return genes_[i]; }
 
-  inline const Gene<T>& front() const { return genes_[0](); }
-  inline Gene<T>& front() { return genes_[0]; }
+  inline constexpr Gene<T>& front() const { return genes_.front(); }
+  inline Gene<T>& front() { return genes_.front(); }
 
-  inline const Gene<T>& back() const { return genes_[N - 1]; }
-  inline Gene<T>& back() { return genes_[N - 1]; }
+  inline constexpr Gene<T>* begin() const { return &genes_.begin(); }
+  inline Gene<T>* begin() { return &genes_.begin(); }
 
-  inline const Gene<T>* begin() const { return &genes_[0]; }
-  inline Gene<T>* begin() { return &genes_[0]; }
+  inline constexpr Gene<T>& back() const { return genes_.back(); }
+  inline Gene<T>& back() { return genes_.back(); }
 
-  inline const Gene<T>* end() const { return &genes_[N - 1]; }
-  inline Gene<T>* end() { return &genes_[N - 1]; }
+  inline constexpr Gene<T>* end() const { return &genes_.end(); }
+  inline Gene<T>* end() { return &genes_.end(); }
 
-  void Reset();
+  constexpr void Reset();
   void Randomize();
 
   friend std::ostream& operator<<<>(std::ostream& os,
                                     const Chromosome<T, N>& chromosome);
 
  private:
-  std::unique_ptr<Gene<T>[]> genes_;
+  std::array<Gene<T>, N> genes_;
 };
 
 template <typename T, std::size_t N>
-Chromosome<T, N>::Chromosome() : genes_(std::make_unique<Gene<T>[]>(N)) {}
-
-template <typename T, std::size_t N>
-Chromosome<T, N>::Chromosome(const Chromosome& chromosome) : Chromosome() {
-  std::copy(chromosome.genes_.get(), chromosome.genes_.get() + N, genes_.get());
-}
-
-template <typename T, std::size_t N>
-Chromosome<T, N>::Chromosome(Chromosome&& chromosome)
-    : genes_(std::move(chromosome.genes_)) {}
-
-template <typename T, std::size_t N>
-Chromosome<T, N>::~Chromosome() {}
-
-template <typename T, std::size_t N>
-void Chromosome<T, N>::Reset() {
+inline constexpr void Chromosome<T, N>::Reset() {
   for (auto& gene : genes_) {
     gene.Reset();
   }

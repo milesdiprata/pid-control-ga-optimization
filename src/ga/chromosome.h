@@ -27,25 +27,27 @@ class Chromosome {
 
   virtual constexpr ~Chromosome() = default;
 
-  constexpr Gene<T>& operator[](const std::size_t i) const { return genes_[i]; }
+  constexpr const Gene<T>& operator[](const std::size_t i) const {
+    return genes_[i];
+  }
   inline Gene<T>& operator[](const std::size_t i) { return genes_[i]; }
 
-  constexpr Gene<T>& front() const { return genes_.front(); }
+  constexpr const Gene<T>& front() const { return genes_.front(); }
   inline Gene<T>& front() { return genes_.front(); }
 
-  constexpr Gene<T>* begin() const { return &genes_.begin(); }
-  inline Gene<T>* begin() { return &genes_.begin(); }
+  constexpr const Gene<T>* const begin() const { return genes_.begin(); }
+  inline Gene<T>* begin() { return genes_.begin(); }
 
-  constexpr Gene<T>& back() const { return genes_.back(); }
+  constexpr const Gene<T>& back() const { return genes_.back(); }
   inline Gene<T>& back() { return genes_.back(); }
 
-  constexpr Gene<T>* end() const { return &genes_.end(); }
-  inline Gene<T>* end() { return &genes_.end(); }
+  constexpr const Gene<T>* const end() const { return genes_.end(); }
+  inline Gene<T>* end() { return genes_.end(); }
 
-  constexpr double fitness() const { return fitness_; }
+  constexpr const double fitness() const { return fitness_; }
   inline double& fitness() { return fitness_; }
 
-  constexpr double selection_pr() const { return selection_pr_; }
+  constexpr const double selection_pr() const { return selection_pr_; }
   inline double& selection_pr() { return selection_pr_; }
 
   constexpr void Reset() {

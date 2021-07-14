@@ -36,13 +36,13 @@ class Gene {
 
   constexpr ~Gene() = default;
 
-  inline constexpr T& value() const { return value_; }
+  constexpr const T& value() const { return value_; }
   inline T& value() { return value_; }
 
-  inline constexpr T& lower_bound() const { return bounds_.lower_bound; }
+  constexpr const T& lower_bound() const { return bounds_.lower_bound; }
   inline T& lower_bound() { return bounds_.lower_bound; }
 
-  inline constexpr T& upper_bound() const { return bounds_.upper_bound; }
+  constexpr const T& upper_bound() const { return bounds_.upper_bound; }
   inline T& upper_bound() { return bounds_.upper_bound; }
 
   constexpr void Reset() { value_ = T(); }

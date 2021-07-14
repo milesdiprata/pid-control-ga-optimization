@@ -24,7 +24,6 @@ class Controller : public System {
 
   constexpr void reset() override {
     System::reset();
-
     integrator_ = 0.0;
     differentiator_ = 0.0;
     prev_error_ = 0.0;
@@ -92,7 +91,6 @@ class Controller : public System {
   Parameters params_;
 
   double setpoint_;
-
   double integrator_;
   double differentiator_;
   double prev_error_;

@@ -27,7 +27,6 @@ class PlantControlSystem : System {
     auto step_response = std::vector<std::pair<double, double>>();
     for (double t = 0.0; t <= kSimulationTimeSecs; t += kSampleTimeSecs) {
       double measurement = Update(controller_.Update(output()));
-
       step_response.push_back(std::make_pair(t, measurement));
     }
 

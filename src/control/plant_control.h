@@ -11,7 +11,7 @@
 
 namespace control {
 
-class PlantControl : System {
+class PlantControl : public System {
  public:
   static constexpr const double kAlpha = 0.02;
 

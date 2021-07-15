@@ -2,6 +2,8 @@
 #define CONTROL_SYSTEM_H_
 
 #include <cstddef>
+#include <fstream>
+#include <string>
 #include <vector>
 
 namespace control {
@@ -18,7 +20,7 @@ class System {
     double value;
   };
 
-  static constexpr const double kSimulationTimeSecs = 50.0;
+  static constexpr const double kSimulationTimeSecs = 15.0;
   static constexpr const double kSampleTimeSecs = 0.01;
 
   constexpr System() = default;
@@ -29,6 +31,18 @@ class System {
   constexpr const double Update(const double input) {
     output_ = Transform(input);
     return output_;
+  }
+
+  static void WriteResponseToFile(const std::string& file_name,
+                                  const std::vector<TimeValue>& response) {
+    auto csv_file = std::ofstream(file_name.c_str(), std::fstream::out);
+
+    csv_file << "time,value\n";
+    for (const auto& [time, value] : response) {
+      csv_file << time << "," << value << "\n";
+    }
+
+    csv_file.close();
   }
 
  protected:

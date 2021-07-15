@@ -1,4 +1,3 @@
-#include <fstream>
 #include <iostream>
 
 #include "control/plant_control.h"
@@ -19,10 +18,7 @@ int main(const int argc, const char* const argv[]) {
 
   auto s = control::PlantControl();
   auto response = s.StepResponse();
-  for (const auto& [t, system_output] : response) {
-    // std::cout << "t=" << t << "\t sys=" << system_output << std::endl;
-    csv_file << t << "," << system_output << "\n";
-  }
+  s.WriteResponseToFile("a.csv", response);
 
   std::cout << "ISE: " << s.IntegralSquaredError(response) << std::endl;
 

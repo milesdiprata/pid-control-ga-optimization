@@ -2,12 +2,23 @@
 #define CONTROL_SYSTEM_H_
 
 #include <cstddef>
+#include <vector>
 
 namespace control {
 
 class System {
  public:
-  static constexpr const double kSimulationTimeSecs = 5.0;
+  struct TimeValue {
+    constexpr TimeValue(const double time = 0.0, const double value = 0.0)
+        : time(time), value(value) {}
+
+    constexpr ~TimeValue() = default;
+
+    double time;
+    double value;
+  };
+
+  static constexpr const double kSimulationTimeSecs = 50.0;
   static constexpr const double kSampleTimeSecs = 0.01;
 
   constexpr System() = default;

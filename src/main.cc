@@ -1,6 +1,7 @@
+#include <fstream>
 #include <iostream>
 
-#include "control/plant_control_system.h"
+#include "control/plant_control.h"
 #include "ga/chromosome.h"
 #include "ga/gene.h"
 #include "ga/procedure.h"
@@ -13,11 +14,18 @@ int main(const int argc, const char* const argv[]) {
   // auto p = ga::Procedure<double, 3>(chromosome_template);
   // p.Start();
 
-  auto s = control::PlantControlSystem();
-  auto result = s.StepResponse();
-  for (const auto& [t, system_output] : result) {
-    std::cout << "t=" << t << "\t sys=" << system_output << std::endl;
+  auto csv_file = std::ofstream("a.csv", std::fstream::out);
+  csv_file << "time,value\n";
+
+  auto s = control::PlantControl();
+  auto response = s.StepResponse();
+  for (const auto& [t, system_output] : response) {
+    // std::cout << "t=" << t << "\t sys=" << system_output << std::endl;
+    csv_file << t << "," << system_output << "\n";
   }
 
+  std::cout << "ISE: " << s.IntegralSquaredError(response) << std::endl;
+
+  csv_file.close();
   return 0;
 }

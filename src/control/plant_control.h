@@ -24,6 +24,12 @@ class PlantControl : public System {
   constexpr PlantControl() = default;
   virtual constexpr ~PlantControl() = default;
 
+  constexpr const Controller& controller() const { return controller_; }
+  constexpr Controller& controller() { return controller_; }
+
+  constexpr const Plant& plant() const { return plant_; }
+  constexpr Plant& plant() { return plant_; }
+
   constexpr void reset() final {
     System::reset();
     controller_.reset();

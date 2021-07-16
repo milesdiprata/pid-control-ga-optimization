@@ -1,8 +1,10 @@
 #ifndef CONTROL_SYSTEM_H_
 #define CONTROL_SYSTEM_H_
 
-#include <cstddef>
 #include <fstream>
+#include <iostream>
+#include <limits>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -10,14 +12,24 @@ namespace control {
 
 class System {
  public:
-  struct TimeValue {
-    constexpr TimeValue(const double time = 0.0, const double value = 0.0)
-        : time(time), value(value) {}
+  struct Response {
+    struct TimeValue {
+      constexpr TimeValue(const double time = 0.0, const double value = 0.0)
+          : time(time), value(value) {}
 
-    constexpr ~TimeValue() = default;
+      constexpr ~TimeValue() = default;
 
-    double time;
-    double value;
+      double time;
+      double value;
+    };
+
+    Response() : max_overshoot(std::numeric_limits<double>::min()) {}
+    ~Response() = default;
+
+    std::vector<TimeValue> time_values;
+    std::optional<double> rise_time;
+    std::optional<double> settling_time;
+    double max_overshoot;
   };
 
   static constexpr const double kSimulationTimeSecs = 15.0;
@@ -34,12 +46,12 @@ class System {
   }
 
   static void WriteResponseToFile(const std::string& file_name,
-                                  const std::vector<TimeValue>& response) {
+                                  const Response& response) {
     auto csv_file = std::ofstream(file_name.c_str(), std::fstream::out);
 
-    csv_file << "time,value\n";
-    for (const auto& [time, value] : response) {
-      csv_file << time << "," << value << "\n";
+    csv_file << "value,time\n";
+    for (const auto& [time, value] : response.time_values) {
+      csv_file << value << "," << time << "\n";
     }
 
     csv_file.close();
@@ -53,6 +65,19 @@ class System {
  private:
   double output_;
 };
+
+std::ostream& operator<<(std::ostream& os, const System::Response& response) {
+  os << "Rise time:\t"
+     << response.rise_time.value_or(std::numeric_limits<double>::max()) << "\n";
+
+  os << "Settling time:\t"
+     << response.settling_time.value_or(std::numeric_limits<double>::max())
+     << "\n";
+
+  os << "Max overshoot:\t" << response.max_overshoot;
+
+  return os;
+}
 
 }  // namespace control
 

@@ -13,15 +13,11 @@ int main(const int argc, const char* const argv[]) {
   // auto p = ga::Procedure<double, 3>(chromosome_template);
   // p.Start();
 
-  auto csv_file = std::ofstream("a.csv", std::fstream::out);
-  csv_file << "time,value\n";
-
   auto s = control::PlantControl();
   auto response = s.StepResponse();
   s.WriteResponseToFile("a.csv", response);
 
-  std::cout << "ISE: " << s.IntegralSquaredError(response) << std::endl;
-
-  csv_file.close();
+  std::cout << response << std::endl;
+  std::cout << "ISE:\t\t" << s.IntegralSquaredError(response) << std::endl;
   return 0;
 }

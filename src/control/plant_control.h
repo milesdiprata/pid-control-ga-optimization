@@ -1,9 +1,9 @@
 #ifndef CONTROL_PLANT_CONTROL_H_
 #define CONTROL_PLANT_CONTROL_H_
 
+#include <algorithm>
+#include <cmath>
 #include <cstddef>
-#include <utility>
-#include <vector>
 
 #include "control/controller.h"
 #include "control/plant.h"
@@ -15,6 +15,12 @@ class PlantControl : public System {
  public:
   static constexpr const double kAlpha = 0.02;
 
+  static constexpr const double kRiseTimeThreshold = 0.9;
+
+  static constexpr const double kSteadyStateErrorPercent = 0.01;
+  static constexpr const double kSteadyStateThreshold =
+      Controller::kUnitStepSetPoint * kSteadyStateErrorPercent;
+
   constexpr PlantControl() = default;
   virtual constexpr ~PlantControl() = default;
 
@@ -24,24 +30,44 @@ class PlantControl : public System {
     plant_.reset();
   }
 
-  const std::vector<TimeValue> StepResponse() {
+  const Response StepResponse() {
+    auto response = Response();
+
     reset();
 
-    auto step_response = std::vector<TimeValue>();
-    for (double t = 0.0; t <= kSimulationTimeSecs; t += kSampleTimeSecs) {
+    for (double time = 0.0; time <= kSimulationTimeSecs;
+         time += kSampleTimeSecs) {
       double measurement = Update(plant_.Update(controller_.Update(output())));
-      step_response.push_back(TimeValue(t, measurement));
+
+      response.time_values.push_back(Response::TimeValue(time, measurement));
+
+      if (!response.rise_time.has_value() &&
+          std::round(measurement * 100) / 100.0 == kRiseTimeThreshold) {
+        response.rise_time = time;
+      }
+
+      double abs_error = std::fabs(Controller::kUnitStepSetPoint - measurement);
+      if (!response.settling_time.has_value() &&
+          abs_error < kSteadyStateThreshold) {
+        response.settling_time = time;
+      } else if (response.settling_time.has_value() &&
+                 abs_error > kSteadyStateThreshold) {
+        response.settling_time.reset();
+      }
+
+      response.max_overshoot = std::max(response.max_overshoot, measurement);
     }
 
-    return step_response;
+    return response;
   }
 
-  static constexpr const double IntegralSquaredError(
-      const std::vector<TimeValue>& response) {
+  static constexpr const double IntegralSquaredError(const Response& response) {
+    auto& time_values = response.time_values;
     double ise = 0.0;
-    for (std::size_t i = 0, size = response.size() - 1; i < size; ++i) {
-      double error = Controller::kUnitStepSetPoint - response[i].value;
-      ise += (error * error) * (response[i + 1].value - response[i].value);
+    for (std::size_t i = 0, size = time_values.size() - 1; i < size; ++i) {
+      double error = Controller::kUnitStepSetPoint - time_values[i].value;
+      ise +=
+          (error * error) * (time_values[i + 1].value - time_values[i].value);
     }
 
     return ise;

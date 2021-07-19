@@ -11,21 +11,24 @@ class Controller : public System {
  public:
   struct Parameters {
     static constexpr const double kDefaultKp = 2.0;
-    static constexpr const double kDefaultKi = 1.05;
-    static constexpr const double kDefaultKd = 0.26;
+    static constexpr const double kDefaultTi = 1.05;
+    static constexpr const double kDefaultTd = 0.26;
     static constexpr const double kDefaultTau = 0.0;
 
     constexpr Parameters(const double k_p = kDefaultKp,
-                         const double k_i = kDefaultKi,
-                         const double k_d = kDefaultKd,
+                         const double t_i = kDefaultTi,
+                         const double t_d = kDefaultTd,
                          const double tau = kDefaultTau)
-        : k_p(k_p), k_i(k_i), k_d(k_d), tau(tau) {}
+        : k_p(k_p), t_i(t_i), t_d(t_d), tau(tau) {}
 
     constexpr ~Parameters() = default;
 
+    constexpr const double k_i() const { return k_p / t_i; }
+    constexpr const double k_d() const { return (k_p * t_d) / kSampleTimeSecs; }
+
     double k_p;
-    double k_i;
-    double k_d;
+    double t_i;
+    double t_d;
     double tau;
   };
 
@@ -40,12 +43,12 @@ class Controller : public System {
       : System(), setpoint_(setpoint) {}
 
   constexpr Controller(const double k_p, const double t_i, const double t_d)
-      : System(), params_(k_p, k_p / t_i, (k_p * t_d) / kSampleTimeSecs) {}
+      : System(), params_(k_p, t_i) {}
 
   virtual constexpr ~Controller() = default;
 
   constexpr const Parameters& params() const { return params_; }
-  constexpr const Parameters& params() { return params_; }
+  constexpr Parameters& params() { return params_; }
 
   constexpr void reset() override {
     System::reset();
@@ -61,7 +64,8 @@ class Controller : public System {
 
     double proportional = params_.k_p * error;
 
-    integrator_ += 0.5 * params_.k_i * kSampleTimeSecs * (error + prev_error_);
+    integrator_ +=
+        0.5 * params_.k_i() * kSampleTimeSecs * (error + prev_error_);
 
     double integrator_min =
         kOutputMin < proportional ? kOutputMin - proportional : 0.0;
@@ -75,7 +79,7 @@ class Controller : public System {
     }
 
     differentiator_ =
-        -((2.0 * params_.k_d * (measurement - prev_measurement_)) +
+        -((2.0 * params_.k_d() * (measurement - prev_measurement_)) +
           ((2.0 * params_.tau - kSampleTimeSecs) * differentiator_)) /
         (2.0 * params_.tau + kSampleTimeSecs);
 

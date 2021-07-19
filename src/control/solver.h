@@ -18,29 +18,24 @@ class Solver : public ga::Procedure<T, N> {
   static constexpr const double kSettlingTimeWeight = 0.25;
   static constexpr const double kMaxOvershootWeight = 0.25;
 
-  constexpr Solver(const typename ga::Procedure<T, N>::Args& args =
-                       ga::Procedure<T, N>::Args())
-      : ga::Procedure<T, N>(args) {}
-
-  constexpr Solver(const ga::Chromosome<T, N>& chromosome_template)
-      : ga::Procedure<T, N>(chromosome_template) {}
-
   constexpr Solver(const typename ga::Procedure<T, N>::Args& args,
-                   const ga::Chromosome<T, N>& chromosome_template)
-      : ga::Procedure<T, N>(args, chromosome_template) {}
+                   const std::vector<typename ga::Gene<T>::Bounds>& constraints)
+      : ga::Procedure<T, N>(args, constraints) {}
 
   virtual constexpr ~Solver() = default;
 
  protected:
-  constexpr const double Fitness(
-      const ga::Chromosome<T, N>& chromosome) const final {
+  constexpr const double Fitness(const ga::Chromosome<T, N>& chromosome) final {
+    plant_control_.controller().params().k_p = chromosome[0].value();
+    plant_control_.controller().params().t_i = chromosome[1].value();
+    plant_control_.controller().params().t_d = chromosome[2].value();
     // return (kIntegralSquaredErrorWeight *
-    //         plant_control_.IntegralSquaredError(plant_control_.S))
-    return 1.0;
+    //         plant_control_.IntegralSquaredError(plant_control_.StepResponse()));
+    return plant_control_.IntegralSquaredError(plant_control_.StepResponse());
+    // return 1.0;
   }
 
  private:
-  ga::Chromosome<T, N> solution_;
   PlantControl plant_control_;
 };
 

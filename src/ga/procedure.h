@@ -3,10 +3,7 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <memory>
 #include <random>
-#include <span>
-#include <unordered_map>
 #include <vector>
 
 #include "ga/chromosome.h"
@@ -16,11 +13,15 @@ namespace ga {
 template <typename T, std::size_t N>
 class Procedure {
  public:
+  static constexpr const double kAlpha = 0.5;
+  static constexpr const std::size_t kNumSurvivors = 2;
+
   struct Args {
-    static constexpr std::size_t kDefaultPopulationSize = 50;
-    static constexpr std::size_t kDefaultNumGenerations = 150;
-    static constexpr double kDefaultCrossoverPr = 0.6;
-    static constexpr double kDefaultMutationPr = 0.25;
+    static constexpr const std::size_t kDefaultPopulationSize = 50;
+    static constexpr const std::size_t kDefaultNumGenerations = 150;
+
+    static constexpr const double kDefaultCrossoverPr = 0.6;
+    static constexpr const double kDefaultMutationPr = 0.25;
 
     constexpr Args(const std::size_t population_size = kDefaultPopulationSize,
                    const std::size_t num_generations = kDefaultNumGenerations,
@@ -45,51 +46,45 @@ class Procedure {
     double mutation_pr;
   };
 
-  constexpr Procedure(const Args& args = Args())
-      : args_(args),
-        chromosomes_(
-            std::make_unique<Chromosome<T, N>[]>(args_.population_size)),
-        num_generations_(0),
-        mt_(std::random_device{}()) {}
-
-  constexpr Procedure(const Chromosome<T, N>& chromosome_template)
-      : Procedure() {
-    InitChromosomes(chromosome_template);
-  }
-
-  constexpr Procedure(const Args& args,
-                      const Chromosome<T, N>& chromosome_template)
-      : Procedure(args) {
-    InitChromosomes(chromosome_template);
-  }
+  constexpr Procedure(
+      const Args& args = Args(),
+      const std::vector<typename Gene<T>::Bounds>& constraints = {})
+      : args_(args), constraints_(constraints), mt_(std::random_device{}()) {}
 
   virtual constexpr ~Procedure() = default;
 
+  constexpr const Args& args() const { return args_; }
+  constexpr Args& args() { return args_; }
+
   constexpr const Chromosome<T, N> Start() {
-    num_generations_ = 0;
+    auto generation = InitGeneration();
+    Randomize(generation);
+    Evaluate(generation);
+    for (const auto& c : generation)
+      std::cout << c << " " << c.fitness() << "\n";
 
-    auto chromosomes = std::span(chromosomes_.get(), args_.population_size);
-    for (auto& chromosome : chromosomes) {
-      chromosome.Randomize();
-      chromosome.fitness() = Fitness(chromosome);
+    for (std::size_t k = 0; k < args_.num_generations; ++k) {
+      auto new_generation = InitGeneration();
+
+      CopySurvivors(generation, new_generation);
+
+      Crossover(SelectParents(generation), new_generation);
+
+      Mutate(new_generation);
+
+      Evaluate(new_generation);
+
+      generation = new_generation;
+
+      return generation.front();
     }
 
-    while (!Terminate()) {
-      auto offspring = Crossover(SelectParents());
-      return chromosomes.front();
-      for (auto& chromosome : offspring) {
-        Mutate(chromosome);
-      }
-
-      UpdatePopulation();
-    }
-
-    return chromosomes.front();
+    return generation.front();
   }
 
  protected:
   virtual constexpr const double Fitness(
-      const Chromosome<T, N>& chromosome) const = 0;
+      const Chromosome<T, N>& chromosome) = 0;
 
  private:
   struct Compare {
@@ -99,14 +94,7 @@ class Procedure {
     }
   };
 
-  constexpr void InitChromosomes(const Chromosome<T, N>& chromosome_template) {
-    auto chromosomes = std::span(chromosomes_.get(), args_.population_size);
-    for (auto& chromosome : chromosomes) {
-      chromosome = chromosome_template;
-    }
-  }
-
-  constexpr const bool Terminate() const {
+  constexpr const bool Terminate(const std::size_t num_generations) const {
     // Termination criteria could be:
     // * Specified number of generations or fitness evaluations
     // * Minimum (solution) threshold reached
@@ -114,19 +102,48 @@ class Procedure {
     // generations
     // * Memory/time constraints
 
-    return num_generations_ > args_.num_generations;
+    return num_generations > args_.num_generations;
   }
 
-  const std::vector<Chromosome<T, N>*> SelectParents() {
-    auto chromosomes = std::span(chromosomes_.get(), args_.population_size);
+  constexpr const std::vector<Chromosome<T, N>> InitGeneration() const {
+    auto generation = std::vector<Chromosome<T, N>>(args_.population_size);
+    for (auto& chromosome : generation) {
+      chromosome = Chromosome<T, N>(constraints_);
+    }
 
+    return generation;
+  }
+
+  constexpr void Randomize(std::vector<Chromosome<T, N>>& generation) {
+    for (auto& chromosome : generation) {
+      chromosome.randomize();
+    }
+  }
+
+  constexpr void Evaluate(std::vector<Chromosome<T, N>>& generation) {
+    for (auto& chromosome : generation) {
+      chromosome.fitness() = Fitness(chromosome);
+    }
+
+    std::sort(generation.begin(), generation.end(), Compare());
+  }
+
+  constexpr void CopySurvivors(const std::vector<Chromosome<T, N>>& generation,
+                               std::vector<Chromosome<T, N>>& new_generation) {
+    for (std::size_t i = 0; i < kNumSurvivors; ++i) {
+      new_generation.push_back(generation[i]);
+    }
+  }
+
+  const std::vector<Chromosome<T, N>*> SelectParents(
+      std::vector<Chromosome<T, N>>& generation) {
     double sum_of_fitness = 0;
-    for (const auto& chromosome : chromosomes) {
+    for (const auto& chromosome : generation) {
       sum_of_fitness += chromosome.fitness();
     }
 
     double prev_selection_pr = 0;
-    for (auto& chromosome : chromosomes) {
+    for (auto& chromosome : generation) {
       double selection_pr =
           prev_selection_pr + (chromosome.fitness() / sum_of_fitness);
 
@@ -134,17 +151,15 @@ class Procedure {
       prev_selection_pr = selection_pr;
     }
 
-    std::sort(chromosomes.begin(), chromosomes.end(), Compare());
-
     auto dis = std::uniform_real_distribution<>();
     auto parents = std::vector<Chromosome<T, N>*>();
 
-    std::size_t num_chromosomes = chromosomes.size();
+    std::size_t num_chromosomes = generation.size();
     std::size_t num_spins = num_chromosomes - (num_chromosomes % 2);
 
     for (std::size_t i = 0; i < num_spins; ++i) {
       double rand = dis(mt_);
-      for (auto& chromosome : chromosomes) {
+      for (auto& chromosome : generation) {
         if (rand < chromosome.selection_pr()) {
           parents.push_back(&chromosome);
           break;
@@ -155,31 +170,81 @@ class Procedure {
     return parents;
   }
 
-  const std::vector<Chromosome<T, N>> Crossover(
-      const std::vector<Chromosome<T, N>*>& parents) {
-    auto offspring = std::vector<Chromosome<T, N>>();
+  void Crossover(const std::vector<Chromosome<T, N>*>& parents,
+                 std::vector<Chromosome<T, N>>& new_generation) {
     auto dis = std::uniform_real_distribution<>();
 
-    for (const auto* const parent : parents) {
-      std::cout << *parent << " " << parent->fitness() << std::endl;
+    auto offspring = std::vector<Chromosome<T, N>>();
+    for (std::size_t i = 0, size = parents.size() - 1; i < size; i += 2) {
       if (dis(mt_) < args_.crossover_pr) {
+        auto& first_parent = *parents[i];
+        auto& second_parent = *parents[i + 1];
+
+        auto first_child = Chromosome<T, N>();
+        auto second_child = Chromosome<T, N>();
+
+        for (std::size_t j = 0; j < N; ++j) {
+          first_child[j] = first_parent[j];
+          first_child[j].value() = (kAlpha * first_parent[j].value()) +
+                                   ((1.0 - kAlpha) * second_parent[j].value());
+
+          second_child[j] = second_parent[j];
+          second_child[j].value() = ((1.0 - kAlpha) * first_parent[j].value()) +
+                                    (kAlpha * second_parent[j].value());
+        }
+
+        first_child.fitness() = Fitness(first_child);
+        second_child.fitness() = Fitness(second_child);
+
+        new_generation.push_back(first_child);
+        new_generation.push_back(second_child);
       }
     }
-
-    return offspring;
   }
 
-  void Mutate(Chromosome<T, N>& chromosome) {
+  void Mutate(std::vector<Chromosome<T, N>>& generation) {
     auto dis = std::uniform_real_distribution<>();
-    if (dis(mt_) < args_.mutation_pr) {
+    auto mutation_dis = typename Gene<T>::uniform_distribution(0, 0.01);
+
+    for (auto& chromosome : generation) {
+      for (auto& gene : chromosome) {
+        if (dis(mt_) < args_.mutation_pr) {
+          gene.value() = gene.value() + mutation_dis(mt_);
+
+          if (gene.bounds().has_value()) {
+            if (gene.value() < gene.bounds()->lower) {
+              gene.value() = gene.bounds()->lower;
+            } else if (gene.value() > gene.bounds()->upper) {
+              gene.value() = gene.bounds()->upper;
+            }
+          }
+        }
+      }
     }
   }
 
-  void UpdatePopulation() {}
+  // void SurvivorSelection(std::vector<Chromosome<T, N>>& offspring) {
+  //   std::sort(offspring.begin(), offspring.end(), Compare());
+
+  //   std::size_t num_survivors = std::min(kNumSurvivors, offspring.size());
+  //   for (std::size_t i = 0; i < num_survivors; ++i) {
+  //     chromosomes_.push_back(offspring[i]);
+  //   }
+
+  //   std::sort(chromosomes_.begin(), chromosomes_.end(), Compare());
+  //   for (std::size_t i = 0; i < num_survivors; ++i) {
+  //     chromosomes_.pop_back();
+  //   }
+
+  //   for (const auto& c : chromosomes_) {
+  //     std::cout << c << " " << c.fitness() << std::endl;
+  //   }
+  // }
 
   Args args_;
-  std::unique_ptr<Chromosome<T, N>[]> chromosomes_;
-  std::size_t num_generations_;
+  std::vector<typename Gene<T>::Bounds> constraints_;
+  // std::vector<Chromosome<T, N>> chromosomes_;
+  // std::size_t num_generations_;
   std::mt19937_64 mt_;
 };
 

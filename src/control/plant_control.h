@@ -37,9 +37,9 @@ class PlantControl : public System {
   }
 
   const Response StepResponse() {
-    auto response = Response();
-
     reset();
+
+    auto response = Response();
 
     for (double time = 0.0; time <= kSimulationTimeSecs;
          time += kSampleTimeSecs) {
@@ -72,8 +72,7 @@ class PlantControl : public System {
     double ise = 0.0;
     for (std::size_t i = 0, size = time_values.size() - 1; i < size; ++i) {
       double error = Controller::kUnitStepSetPoint - time_values[i].value;
-      ise +=
-          (error * error) * (time_values[i + 1].value - time_values[i].value);
+      ise += (error * error) * (time_values[i + 1].time - time_values[i].time);
     }
 
     return ise;

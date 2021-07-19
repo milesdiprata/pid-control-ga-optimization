@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <iterator>
 #include <random>
 #include <vector>
 
@@ -60,26 +61,37 @@ class Procedure {
     auto generation = InitGeneration();
     Randomize(generation);
     Evaluate(generation);
+
+    std::cout << "Initial " << generation.size() << "\n";
     for (const auto& c : generation)
       std::cout << c << " " << c.fitness() << "\n";
+    std::cout << "\n";
 
     for (std::size_t k = 0; k < args_.num_generations; ++k) {
-      auto new_generation = InitGeneration();
+      auto new_generation = std::vector<Chromosome<T, N>>(
+          generation.begin(), generation.begin() + kNumSurvivors);
 
-      CopySurvivors(generation, new_generation);
+      auto offspring = Crossover(SelectParents(generation));
 
-      Crossover(SelectParents(generation), new_generation);
+      Mutate(offspring);
 
-      Mutate(new_generation);
+      new_generation.insert(new_generation.end(),
+                            std::make_move_iterator(offspring.begin()),
+                            std::make_move_iterator(offspring.end()));
 
       Evaluate(new_generation);
 
       generation = new_generation;
 
-      return generation.front();
+      std::cout << "new " << new_generation.size() << "\n";
+      for (const auto& c : new_generation)
+        std::cout << c << " " << c.fitness() << "\n";
+      std::cout << "\n";
+
+      // return Chromosome<T, N>();
     }
 
-    return generation.front();
+    return generation.back();
   }
 
  protected:
@@ -170,8 +182,8 @@ class Procedure {
     return parents;
   }
 
-  void Crossover(const std::vector<Chromosome<T, N>*>& parents,
-                 std::vector<Chromosome<T, N>>& new_generation) {
+  const std::vector<Chromosome<T, N>> Crossover(
+      const std::vector<Chromosome<T, N>*>& parents) {
     auto dis = std::uniform_real_distribution<>();
 
     auto offspring = std::vector<Chromosome<T, N>>();
@@ -196,10 +208,12 @@ class Procedure {
         first_child.fitness() = Fitness(first_child);
         second_child.fitness() = Fitness(second_child);
 
-        new_generation.push_back(first_child);
-        new_generation.push_back(second_child);
+        offspring.push_back(first_child);
+        offspring.push_back(second_child);
       }
     }
+
+    return offspring;
   }
 
   void Mutate(std::vector<Chromosome<T, N>>& generation) {

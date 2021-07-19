@@ -29,10 +29,13 @@ class Solver : public ga::Procedure<T, N> {
     plant_control_.controller().params().k_p = chromosome[0].value();
     plant_control_.controller().params().t_i = chromosome[1].value();
     plant_control_.controller().params().t_d = chromosome[2].value();
-    // return (kIntegralSquaredErrorWeight *
-    //         plant_control_.IntegralSquaredError(plant_control_.StepResponse()));
-    return plant_control_.IntegralSquaredError(plant_control_.StepResponse());
-    // return 1.0;
+
+    auto response = plant_control_.StepResponse();
+    return (kIntegralSquaredErrorWeight *
+            plant_control_.IntegralSquaredError(response)) +
+           (kRiseTimeWeight * response.rise_time.value_or(0.0)) +
+           (kSettlingTimeWeight * response.settling_time.value_or(0.0)) +
+           (kMaxOvershootWeight * response.max_overshoot);
   }
 
  private:

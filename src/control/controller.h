@@ -13,7 +13,7 @@ class Controller : public System {
     static constexpr const double kDefaultKp = 2.0;
     static constexpr const double kDefaultTi = 1.05;
     static constexpr const double kDefaultTd = 0.26;
-    static constexpr const double kDefaultTau = 0.0;
+    static constexpr const double kDefaultTau = 0.02;
 
     constexpr Parameters(const double k_p = kDefaultKp,
                          const double t_i = kDefaultTi,

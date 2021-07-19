@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include "control/plant_control.h"
 #include "control/solver.h"
 
 int main(const int argc, const char* const argv[]) {
@@ -10,5 +11,12 @@ int main(const int argc, const char* const argv[]) {
       control::Solver<double, 3>(ga::Procedure<double, 3>::Args(), constraints);
   auto solution = solver.Start();
   std::cout << solution << " " << solution.fitness() << std::endl;
+
+  auto pc = control::PlantControl();
+  pc.controller().params().k_p = solution[0].value();
+  pc.controller().params().t_i = solution[1].value();
+  pc.controller().params().t_d = solution[2].value();
+  pc.WriteResponseToFile("a.csv", pc.StepResponse());
+
   return 0;
 }

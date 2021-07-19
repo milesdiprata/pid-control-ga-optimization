@@ -69,6 +69,16 @@ class Gene {
     value_ = dis(mt);
   }
 
+  void validate() {
+    if (bounds_.has_value()) {
+      if (value_ < bounds_->lower) {
+        value_ = bounds_->lower;
+      } else if (value_ > bounds_->upper) {
+        value_ = bounds_->upper;
+      }
+    }
+  }
+
   friend std::ostream& operator<<<>(std::ostream& os, const Gene& gene);
 
   T value_;

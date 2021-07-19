@@ -32,7 +32,7 @@ class System {
     double max_overshoot;
   };
 
-  static constexpr const double kSimulationTimeSecs = 15.0;
+  static constexpr const double kSimulationTimeSecs = 100.0;
   static constexpr const double kSampleTimeSecs = 0.01;
 
   constexpr System() = default;

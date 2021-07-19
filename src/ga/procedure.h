@@ -58,40 +58,31 @@ class Procedure {
   constexpr Args& args() { return args_; }
 
   constexpr const Chromosome<T, N> Start() {
-    auto generation = InitGeneration();
-    Randomize(generation);
-    Evaluate(generation);
+    auto generation = RandomGeneration();
+    EvaluateFitness(generation);
+    std::sort(generation.begin(), generation.end(), CompareFitness());
 
-    std::cout << "Initial " << generation.size() << "\n";
-    for (const auto& c : generation)
-      std::cout << c << " " << c.fitness() << "\n";
-    std::cout << "\n";
-
-    for (std::size_t k = 0; k < args_.num_generations; ++k) {
+    std::size_t num_generations = 0;
+    while (!Terminate(num_generations)) {
       auto new_generation = std::vector<Chromosome<T, N>>(
           generation.begin(), generation.begin() + kNumSurvivors);
 
-      auto offspring = Crossover(SelectParents(generation));
+      auto offspring = WholeArithmeticCrossover(SelectParentsFPS(generation));
 
-      Mutate(offspring);
+      UniformMutation(offspring);
 
       new_generation.insert(new_generation.end(),
                             std::make_move_iterator(offspring.begin()),
                             std::make_move_iterator(offspring.end()));
 
-      Evaluate(new_generation);
+      EvaluateFitness(new_generation);
 
       generation = new_generation;
-
-      std::cout << "new " << new_generation.size() << "\n";
-      for (const auto& c : new_generation)
-        std::cout << c << " " << c.fitness() << "\n";
-      std::cout << "\n";
-
-      // return Chromosome<T, N>();
+      ++num_generations;
     }
 
-    return generation.back();
+    return *std::max_element(generation.begin(), generation.end(),
+                             CompareFitness());
   }
 
  protected:
@@ -99,10 +90,27 @@ class Procedure {
       const Chromosome<T, N>& chromosome) = 0;
 
  private:
-  struct Compare {
+  struct Parent {
+    constexpr Parent(const Chromosome<T, N>* first = nullptr,
+                     const Chromosome<T, N>* second = nullptr)
+        : first(first), second(second) {}
+    constexpr ~Parent() = default;
+
+    const Chromosome<T, N>* first;
+    const Chromosome<T, N>* second;
+  };
+
+  struct CompareFitness {
     constexpr const bool operator()(const Chromosome<T, N>& c1,
                                     const Chromosome<T, N>& c2) const {
       return c1.fitness() < c2.fitness();
+    }
+  };
+
+  struct CompareSelectionPr {
+    constexpr const bool operator()(const Chromosome<T, N>& c1,
+                                    const Chromosome<T, N>& c2) const {
+      return c1.selection_pr() < c2.selection_pr();
     }
   };
 
@@ -117,81 +125,75 @@ class Procedure {
     return num_generations > args_.num_generations;
   }
 
-  constexpr const std::vector<Chromosome<T, N>> InitGeneration() const {
+  constexpr const std::vector<Chromosome<T, N>> RandomGeneration() const {
     auto generation = std::vector<Chromosome<T, N>>(args_.population_size);
     for (auto& chromosome : generation) {
       chromosome = Chromosome<T, N>(constraints_);
+      chromosome.randomize();
     }
 
     return generation;
   }
 
-  constexpr void Randomize(std::vector<Chromosome<T, N>>& generation) {
-    for (auto& chromosome : generation) {
-      chromosome.randomize();
-    }
-  }
-
-  constexpr void Evaluate(std::vector<Chromosome<T, N>>& generation) {
+  constexpr void EvaluateFitness(std::vector<Chromosome<T, N>>& generation) {
     for (auto& chromosome : generation) {
       chromosome.fitness() = Fitness(chromosome);
     }
-
-    std::sort(generation.begin(), generation.end(), Compare());
   }
 
-  constexpr void CopySurvivors(const std::vector<Chromosome<T, N>>& generation,
-                               std::vector<Chromosome<T, N>>& new_generation) {
-    for (std::size_t i = 0; i < kNumSurvivors; ++i) {
-      new_generation.push_back(generation[i]);
-    }
-  }
-
-  const std::vector<Chromosome<T, N>*> SelectParents(
+  const std::vector<Parent> SelectParentsFPS(
       std::vector<Chromosome<T, N>>& generation) {
-    double sum_of_fitness = 0;
+    double sum_of_fitness = 0.0;
     for (const auto& chromosome : generation) {
       sum_of_fitness += chromosome.fitness();
     }
 
-    double prev_selection_pr = 0;
+    double prev_pr = 0.0;
     for (auto& chromosome : generation) {
-      double selection_pr =
-          prev_selection_pr + (chromosome.fitness() / sum_of_fitness);
+      double selection_pr = prev_pr + (chromosome.fitness() / sum_of_fitness);
 
       chromosome.selection_pr() = selection_pr;
-      prev_selection_pr = selection_pr;
+      prev_pr = selection_pr;
     }
 
-    auto dis = std::uniform_real_distribution<>();
-    auto parents = std::vector<Chromosome<T, N>*>();
+    std::sort(generation.begin(), generation.end(), CompareSelectionPr());
 
-    std::size_t num_chromosomes = generation.size();
-    std::size_t num_spins = num_chromosomes - (num_chromosomes % 2);
-
-    for (std::size_t i = 0; i < num_spins; ++i) {
-      double rand = dis(mt_);
-      for (auto& chromosome : generation) {
-        if (rand < chromosome.selection_pr()) {
-          parents.push_back(&chromosome);
-          break;
-        }
-      }
+    auto parents = std::vector<Parent>((generation.size() - kNumSurvivors) / 2);
+    for (auto& parent : parents) {
+      parent = SelectParent(generation);
     }
 
     return parents;
   }
 
-  const std::vector<Chromosome<T, N>> Crossover(
-      const std::vector<Chromosome<T, N>*>& parents) {
+  const Parent SelectParent(const std::vector<Chromosome<T, N>>& generation) {
+    auto parent = Parent();
     auto dis = std::uniform_real_distribution<>();
 
-    auto offspring = std::vector<Chromosome<T, N>>();
-    for (std::size_t i = 0, size = parents.size() - 1; i < size; i += 2) {
-      if (dis(mt_) < args_.crossover_pr) {
-        auto& first_parent = *parents[i];
-        auto& second_parent = *parents[i + 1];
+    for (const auto& chromosome : generation) {
+      if (dis(mt_) < chromosome.selection_pr()) {
+        if (!parent.first) {
+          parent.first = &chromosome;
+        } else {
+          parent.second = &chromosome;
+          break;
+        }
+      }
+    }
 
+    return parent;
+  }
+
+  const std::vector<Chromosome<T, N>> WholeArithmeticCrossover(
+      const std::vector<Parent>& parents) {
+    auto offspring = std::vector<Chromosome<T, N>>();
+    auto dis = std::uniform_real_distribution<>();
+
+    for (const auto& parent : parents) {
+      auto& first_parent = *parent.first;
+      auto& second_parent = *parent.second;
+
+      if (dis(mt_) < args_.crossover_pr) {
         auto first_child = Chromosome<T, N>();
         auto second_child = Chromosome<T, N>();
 
@@ -205,60 +207,31 @@ class Procedure {
                                     (kAlpha * second_parent[j].value());
         }
 
-        first_child.fitness() = Fitness(first_child);
-        second_child.fitness() = Fitness(second_child);
-
         offspring.push_back(first_child);
         offspring.push_back(second_child);
+      } else {
+        offspring.push_back(first_parent);
+        offspring.push_back(second_parent);
       }
     }
 
     return offspring;
   }
 
-  void Mutate(std::vector<Chromosome<T, N>>& generation) {
+  void UniformMutation(std::vector<Chromosome<T, N>>& offspring) {
     auto dis = std::uniform_real_distribution<>();
-    auto mutation_dis = typename Gene<T>::uniform_distribution(0, 0.01);
 
-    for (auto& chromosome : generation) {
+    for (auto& chromosome : offspring) {
       for (auto& gene : chromosome) {
         if (dis(mt_) < args_.mutation_pr) {
-          gene.value() = gene.value() + mutation_dis(mt_);
-
-          if (gene.bounds().has_value()) {
-            if (gene.value() < gene.bounds()->lower) {
-              gene.value() = gene.bounds()->lower;
-            } else if (gene.value() > gene.bounds()->upper) {
-              gene.value() = gene.bounds()->upper;
-            }
-          }
+          gene.randomize();
         }
       }
     }
   }
 
-  // void SurvivorSelection(std::vector<Chromosome<T, N>>& offspring) {
-  //   std::sort(offspring.begin(), offspring.end(), Compare());
-
-  //   std::size_t num_survivors = std::min(kNumSurvivors, offspring.size());
-  //   for (std::size_t i = 0; i < num_survivors; ++i) {
-  //     chromosomes_.push_back(offspring[i]);
-  //   }
-
-  //   std::sort(chromosomes_.begin(), chromosomes_.end(), Compare());
-  //   for (std::size_t i = 0; i < num_survivors; ++i) {
-  //     chromosomes_.pop_back();
-  //   }
-
-  //   for (const auto& c : chromosomes_) {
-  //     std::cout << c << " " << c.fitness() << std::endl;
-  //   }
-  // }
-
   Args args_;
   std::vector<typename Gene<T>::Bounds> constraints_;
-  // std::vector<Chromosome<T, N>> chromosomes_;
-  // std::size_t num_generations_;
   std::mt19937_64 mt_;
 };
 

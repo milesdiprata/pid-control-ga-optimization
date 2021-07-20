@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <limits>
 
 #include "control/controller.h"
 #include "control/plant.h"
@@ -43,12 +44,14 @@ class PlantControl : public System {
 
     for (double time = 0.0; time <= kSimulationTimeSecs;
          time += kSampleTimeSecs) {
-      double measurement = Update(plant_.Update(controller_.Update(output())));
+      // double measurement =
+      // Update(plant_.Update(controller_.Update(output())));
+      double measurement = Update(controller_.Update(output()));
 
       response.time_values.push_back(Response::TimeValue(time, measurement));
 
       if (!response.rise_time.has_value() &&
-          std::round(measurement * 100) / 100.0 == kRiseTimeThreshold) {
+          std::round(measurement * 100.0) / 100.0 == kRiseTimeThreshold) {
         response.rise_time = time;
       }
 
@@ -61,7 +64,11 @@ class PlantControl : public System {
         response.settling_time.reset();
       }
 
-      response.max_overshoot = std::max(response.max_overshoot, measurement);
+      if (measurement >= Controller::kUnitStepSetPoint) {
+        response.max_overshoot = std::max(
+            response.max_overshoot.value_or(std::numeric_limits<double>::min()),
+            measurement);
+      }
     }
 
     return response;

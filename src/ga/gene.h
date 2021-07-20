@@ -64,8 +64,9 @@ class Gene {
 
   void randomize() {
     static auto mt = std::mt19937_64(std::random_device{}());
-    auto dis = bounds_ ? uniform_distribution(bounds_->lower, bounds_->upper)
-                       : uniform_distribution();
+    auto dis = bounds_.has_value()
+                   ? uniform_distribution(bounds_->lower, bounds_->upper)
+                   : uniform_distribution();
     value_ = dis(mt);
   }
 

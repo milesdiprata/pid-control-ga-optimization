@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <fstream>
 #include <iterator>
 #include <random>
 #include <vector>
@@ -19,7 +20,7 @@ class Procedure {
 
   struct Args {
     static constexpr const std::size_t kDefaultPopulationSize = 50;
-    static constexpr const std::size_t kDefaultNumGenerations = 150;
+    static constexpr const std::size_t kDefaultNumGenerations = 500;
 
     static constexpr const double kDefaultCrossoverPr = 0.6;
     static constexpr const double kDefaultMutationPr = 0.25;
@@ -57,13 +58,16 @@ class Procedure {
   constexpr const Args& args() const { return args_; }
   constexpr Args& args() { return args_; }
 
-  constexpr const Chromosome<T, N> Start() {
+  const Chromosome<T, N> Start() {
+    auto csv_file = std::ofstream("fitness.csv", std::fstream::out);
+    csv_file << "generation,fitness\n";
+
     auto generation = RandomGeneration();
     EvaluateFitness(generation);
-    std::sort(generation.begin(), generation.end(), CompareFitness());
 
     std::size_t num_generations = 0;
     while (!Terminate(num_generations)) {
+      std::sort(generation.begin(), generation.end(), CompareFitness());
       auto new_generation = std::vector<Chromosome<T, N>>(
           generation.begin(), generation.begin() + kNumSurvivors);
 
@@ -79,9 +83,17 @@ class Procedure {
 
       generation = new_generation;
       ++num_generations;
+
+      csv_file << num_generations << ","
+               << std::min_element(generation.begin(), generation.end(),
+                                   CompareFitness())
+                      ->fitness()
+               << "\n";
     }
 
-    return *std::max_element(generation.begin(), generation.end(),
+    csv_file.close();
+
+    return *std::min_element(generation.begin(), generation.end(),
                              CompareFitness());
   }
 
@@ -222,10 +234,8 @@ class Procedure {
     auto dis = std::uniform_real_distribution<>();
 
     for (auto& chromosome : offspring) {
-      for (auto& gene : chromosome) {
-        if (dis(mt_) < args_.mutation_pr) {
-          gene.randomize();
-        }
+      if (dis(mt_) < args_.mutation_pr) {
+        chromosome.randomize();
       }
     }
   }

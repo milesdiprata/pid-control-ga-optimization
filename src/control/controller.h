@@ -24,7 +24,7 @@ class Controller : public System {
     constexpr ~Parameters() = default;
 
     constexpr const double k_i() const { return k_p / t_i; }
-    constexpr const double k_d() const { return (k_p * t_d) / kSampleTimeSecs; }
+    constexpr const double k_d() const { return k_p * t_d; }
 
     double k_p;
     double t_i;
@@ -43,7 +43,7 @@ class Controller : public System {
       : System(), setpoint_(setpoint) {}
 
   constexpr Controller(const double k_p, const double t_i, const double t_d)
-      : System(), params_(k_p, t_i) {}
+      : System(), params_(k_p, t_i, t_d) {}
 
   virtual constexpr ~Controller() = default;
 
@@ -64,8 +64,8 @@ class Controller : public System {
 
     double proportional = params_.k_p * error;
 
-    integrator_ +=
-        0.5 * params_.k_i() * kSampleTimeSecs * (error + prev_error_);
+    integrator_ = integrator_ +
+                  0.5 * params_.k_i() * kSampleTimeSecs * (error + prev_error_);
 
     double integrator_min =
         kOutputMin < proportional ? kOutputMin - proportional : 0.0;

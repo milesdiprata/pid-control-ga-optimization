@@ -2,6 +2,7 @@
 #define PID_SOLVER_H_
 
 #include <cstddef>
+#include <limits>
 
 #include "control/controller.h"
 #include "control/plant_control.h"
@@ -13,6 +14,8 @@ namespace control {
 template <typename T = double, std::size_t N = control::Controller::kNumParams>
 class Solver : public ga::Procedure<T, N> {
  public:
+  static constexpr const double kMaxFitnessValue = 1000.0;
+
   static constexpr const double kIntegralSquaredErrorWeight = 0.25;
   static constexpr const double kRiseTimeWeight = 0.25;
   static constexpr const double kSettlingTimeWeight = 0.25;
@@ -31,11 +34,17 @@ class Solver : public ga::Procedure<T, N> {
     plant_control_.controller().params().t_d = chromosome[2].value();
 
     auto response = plant_control_.StepResponse();
-    return (kIntegralSquaredErrorWeight *
-            plant_control_.IntegralSquaredError(response)) +
-           (kRiseTimeWeight * response.rise_time.value_or(0.0)) +
-           (kSettlingTimeWeight * response.settling_time.value_or(0.0)) +
-           (kMaxOvershootWeight * response.max_overshoot);
+    if (!response.rise_time.has_value() ||
+        !response.settling_time.has_value() ||
+        !response.max_overshoot.has_value()) {
+      return kMaxFitnessValue;
+    } else {
+      return (kIntegralSquaredErrorWeight *
+              plant_control_.IntegralSquaredError(response)) +
+             (kRiseTimeWeight * response.rise_time.value()) +
+             (kSettlingTimeWeight * response.settling_time.value()) +
+             (kMaxOvershootWeight * response.max_overshoot.value());
+    }
   }
 
  private:

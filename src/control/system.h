@@ -23,22 +23,22 @@ class System {
       double value;
     };
 
-    Response() : max_overshoot(std::numeric_limits<double>::min()) {}
+    Response() = default;
     ~Response() = default;
 
     std::vector<TimeValue> time_values;
     std::optional<double> rise_time;
     std::optional<double> settling_time;
-    double max_overshoot;
+    std::optional<double> max_overshoot;
   };
 
-  static constexpr const double kSimulationTimeSecs = 100.0;
+  static constexpr const double kSimulationTimeSecs = 20.0;
   static constexpr const double kSampleTimeSecs = 0.01;
 
   constexpr System() = default;
   virtual constexpr ~System() = default;
 
-  virtual constexpr void reset() { output_ = 0; }
+  virtual constexpr void reset() { output_ = 0.0; }
 
   constexpr const double Update(const double input) {
     output_ = Transform(input);
@@ -49,9 +49,9 @@ class System {
                                   const Response& response) {
     auto csv_file = std::ofstream(file_name.c_str(), std::fstream::out);
 
-    csv_file << "value,time\n";
+    csv_file << "time,value\n";
     for (const auto& [time, value] : response.time_values) {
-      csv_file << value << "," << time << "\n";
+      csv_file << time << "," << value << "\n";
     }
 
     csv_file.close();
@@ -68,13 +68,14 @@ class System {
 
 std::ostream& operator<<(std::ostream& os, const System::Response& response) {
   os << "Rise time:\t"
-     << response.rise_time.value_or(std::numeric_limits<double>::max()) << "\n";
+     << response.rise_time.value_or(std::numeric_limits<double>::min()) << "\n";
 
   os << "Settling time:\t"
-     << response.settling_time.value_or(std::numeric_limits<double>::max())
+     << response.settling_time.value_or(std::numeric_limits<double>::min())
      << "\n";
 
-  os << "Max overshoot:\t" << response.max_overshoot;
+  os << "Max overshoot:\t"
+     << response.max_overshoot.value_or(std::numeric_limits<double>::min());
 
   return os;
 }

@@ -11,7 +11,7 @@ int main(const int argc, const char* const argv[]) {
   auto solver = control::Solver<double, 3>(args, constraints);
   auto solution = solver.Start();
 
-  std::cout << solution << " f=" << solution.fitness() << std::endl;
+  std::cout << solution << " fitness=" << solution.fitness() << std::endl;
 
   auto pc = control::PlantControl();
   pc.controller().params().k_p = solution[0].value();
@@ -21,7 +21,7 @@ int main(const int argc, const char* const argv[]) {
 
   std::cout << response << std::endl;
   std::cout << "ISE:\t\t" << pc.IntegralSquaredError(response) << std::endl;
-  pc.WriteResponseToFile("a.csv", response);
+  pc.WriteResponseToFile("time_values.csv", response);
 
   return 0;
 }

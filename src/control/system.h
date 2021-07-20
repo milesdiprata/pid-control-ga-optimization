@@ -32,7 +32,7 @@ class System {
     std::optional<double> max_overshoot;
   };
 
-  static constexpr const double kSimulationTimeSecs = 20.0;
+  static constexpr const double kSimulationTimeSecs = 100.0;
   static constexpr const double kSampleTimeSecs = 0.01;
 
   constexpr System() = default;
@@ -40,7 +40,7 @@ class System {
 
   virtual constexpr void reset() { output_ = 0.0; }
 
-  constexpr const double Update(const double input) {
+  constexpr const double update_output(const double input) {
     output_ = Transform(input);
     return output_;
   }

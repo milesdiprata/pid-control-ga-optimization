@@ -59,7 +59,7 @@ class Procedure {
   constexpr Args& args() { return args_; }
 
   const Chromosome<T, N> Start() {
-    auto csv_file = std::ofstream("fitness.csv", std::fstream::out);
+    auto csv_file = std::ofstream("fitnesses.csv", std::fstream::out);
     csv_file << "generation,fitness\n";
 
     auto generation = RandomGeneration();

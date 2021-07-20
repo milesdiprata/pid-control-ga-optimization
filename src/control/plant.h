@@ -7,18 +7,17 @@ namespace control {
 
 class Plant : public System {
  public:
-  static constexpr const double kAlpha = 1;
+  static constexpr const double kEpsilon = 0.02;
 
   constexpr Plant() = default;
   virtual constexpr ~Plant() = default;
 
+  constexpr void reset() final { System::reset(); }
+
  protected:
-  // https://electronics.stackexchange.com/questions/52099/implementing-a-continuous-time-transfer-function-in-pc-code
-  //        H(s) = 1 / ((alpha * s) + 1)
-  // => y[n + 1] = y[n] + T * (1 / alpha) * (x[n] - y[n])
   constexpr const double Transform(const double input) final {
-    double output = System::output();
-    return output + (kSampleTimeSecs / kAlpha) * (input - output);
+    return ((kSampleTimeSecs * input) + output()) /
+           (1.0 + (kEpsilon * kSampleTimeSecs));
   }
 };
 

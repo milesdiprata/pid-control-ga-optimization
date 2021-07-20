@@ -14,8 +14,6 @@ namespace control {
 
 class PlantControl : public System {
  public:
-  static constexpr const double kAlpha = 0.02;
-
   static constexpr const double kRiseTimeThreshold = 0.9;
 
   static constexpr const double kSteadyStateErrorPercent = 0.01;
@@ -44,10 +42,7 @@ class PlantControl : public System {
 
     for (double time = 0.0; time <= kSimulationTimeSecs;
          time += kSampleTimeSecs) {
-      // double measurement =
-      // Update(plant_.Update(controller_.Update(output())));
-      double measurement = Update(controller_.Update(output()));
-
+      double measurement = update_output(output());
       response.time_values.push_back(Response::TimeValue(time, measurement));
 
       if (!response.rise_time.has_value() &&
@@ -78,19 +73,17 @@ class PlantControl : public System {
   static constexpr const double IntegralSquaredError(const Response& response) {
     auto& time_values = response.time_values;
     double ise = 0.0;
-    for (std::size_t i = 0, size = time_values.size() - 1; i < size; ++i) {
+    for (std::size_t i = 1, size = time_values.size(); i < size; ++i) {
       double error = Controller::kUnitStepSetPoint - time_values[i].value;
-      ise += (error * error) * (time_values[i + 1].time - time_values[i].time);
+      ise += (error * error) * (time_values[i].time - time_values[i - 1].time);
     }
 
     return ise;
   }
 
  protected:
-  // Simulates dynamics of a first-order system
   constexpr const double Transform(const double input) final {
-    return (kSampleTimeSecs * input + output()) /
-           (1.0 + kAlpha * kSampleTimeSecs);
+    return plant_.update_output(controller_.update_output(input));
   }
 
  private:

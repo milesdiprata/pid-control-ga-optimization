@@ -65,9 +65,10 @@ class PlantControl : public System {
       }
 
       if (measurement >= Controller::kUnitStepSetPoint) {
-        response.max_overshoot = std::max(
-            response.max_overshoot.value_or(std::numeric_limits<double>::min()),
-            measurement);
+        response.max_overshoot =
+            response.max_overshoot.has_value()
+                ? std::max(response.max_overshoot.value(), measurement)
+                : measurement;
       }
     }
 

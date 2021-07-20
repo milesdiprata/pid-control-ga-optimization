@@ -14,7 +14,7 @@ namespace control {
 template <typename T = double, std::size_t N = control::Controller::kNumParams>
 class Solver : public ga::Procedure<T, N> {
  public:
-  static constexpr const double kMaxFitnessValue = 1000.0;
+  static constexpr const double kMaxFitnessValue = 50.0;
 
   static constexpr const double kIntegralSquaredErrorWeight = 0.25;
   static constexpr const double kRiseTimeWeight = 0.25;

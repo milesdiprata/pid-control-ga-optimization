@@ -73,7 +73,7 @@ class Chromosome {
 
   constexpr void reset() {
     for (auto& gene : genes_) {
-      gene.Reset();
+      gene.reset();
     }
 
     fitness_ = 0.0;
@@ -85,8 +85,8 @@ class Chromosome {
       gene.randomize();
     }
 
-    fitness_ = 0;
-    selection_pr_ = 0;
+    fitness_ = 0.0;
+    selection_pr_ = 0.0;
   }
 
   friend std::ostream& operator<<<>(std::ostream& os,

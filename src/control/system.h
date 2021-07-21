@@ -51,7 +51,7 @@ class System {
 
     csv_file << "time,value\n";
     for (const auto& [time, value] : response.time_values) {
-      csv_file << time << "," << value << "\n";
+      csv_file << time << "," << value << std::endl;
     }
 
     csv_file.close();
@@ -68,11 +68,12 @@ class System {
 
 std::ostream& operator<<(std::ostream& os, const System::Response& response) {
   os << "Rise time:\t"
-     << response.rise_time.value_or(std::numeric_limits<double>::min()) << "\n";
+     << response.rise_time.value_or(std::numeric_limits<double>::min())
+     << std::endl;
 
   os << "Settling time:\t"
      << response.settling_time.value_or(std::numeric_limits<double>::min())
-     << "\n";
+     << std::endl;
 
   os << "Max overshoot:\t"
      << response.max_overshoot.value_or(std::numeric_limits<double>::min());

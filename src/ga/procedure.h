@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <fstream>
+#include <iostream>
 #include <iterator>
 #include <random>
 #include <vector>
@@ -20,7 +21,7 @@ class Procedure {
 
   struct Args {
     static constexpr const std::size_t kDefaultPopulationSize = 50;
-    static constexpr const std::size_t kDefaultNumGenerations = 500;
+    static constexpr const std::size_t kDefaultNumGenerations = 150;
 
     static constexpr const double kDefaultCrossoverPr = 0.6;
     static constexpr const double kDefaultMutationPr = 0.25;
@@ -42,6 +43,15 @@ class Procedure {
 
     constexpr ~Args() = default;
 
+    friend std::ostream& operator<<(std::ostream& os, const Args& args) {
+      os << "Population:\t" << args.population_size << std::endl;
+      os << "Generations:\t" << args.num_generations << std::endl;
+      os << "Crossover pr.:\t" << args.crossover_pr << std::endl;
+      os << "Mutation pr.:\t" << args.mutation_pr;
+
+      return os;
+    }
+
     std::size_t population_size;
     std::size_t num_generations;
     double crossover_pr;
@@ -60,7 +70,9 @@ class Procedure {
 
   const Chromosome<T, N> Start() {
     auto csv_file = std::ofstream("fitnesses.csv", std::fstream::out);
-    csv_file << "generation,fitness\n";
+    csv_file << "generation,fitness" << std::endl;
+
+    Chromosome<T, N>* solution = nullptr;
 
     auto generation = RandomGeneration();
     EvaluateFitness(generation);
@@ -84,17 +96,15 @@ class Procedure {
       generation = new_generation;
       ++num_generations;
 
-      csv_file << num_generations << ","
-               << std::min_element(generation.begin(), generation.end(),
-                                   CompareFitness())
-                      ->fitness()
-               << "\n";
+      solution = &*std::min_element(generation.begin(), generation.end(),
+                                    CompareFitness());
+
+      csv_file << num_generations << "," << solution->fitness() << std::endl;
     }
 
     csv_file.close();
 
-    return *std::min_element(generation.begin(), generation.end(),
-                             CompareFitness());
+    return *solution;
   }
 
  protected:
@@ -206,15 +216,12 @@ class Procedure {
       auto& second_parent = *parent.second;
 
       if (dis(mt_) < args_.crossover_pr) {
-        auto first_child = Chromosome<T, N>();
-        auto second_child = Chromosome<T, N>();
+        auto first_child = Chromosome<T, N>(constraints_);
+        auto second_child = Chromosome<T, N>(constraints_);
 
         for (std::size_t j = 0; j < N; ++j) {
-          first_child[j] = first_parent[j];
           first_child[j].value() = (kAlpha * first_parent[j].value()) +
                                    ((1.0 - kAlpha) * second_parent[j].value());
-
-          second_child[j] = second_parent[j];
           second_child[j].value() = ((1.0 - kAlpha) * first_parent[j].value()) +
                                     (kAlpha * second_parent[j].value());
         }
